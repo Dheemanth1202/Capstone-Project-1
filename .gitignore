@@ -1,0 +1,19 @@
+# Simulation binaries and output files
+sim/wallace_tb
+sim/*.vcd
+sim/*.lxt
+sim/*.fst
+sim/sim_log.txt
+
+# Synthesis outputs
+reports/*.rpt
+reports/wallace_synth.v
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+.vscode/
