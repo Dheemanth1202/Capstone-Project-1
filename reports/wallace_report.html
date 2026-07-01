@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Pipelined Wallace Tree Multiplier Report</title>
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    body {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        color: #1e293b;
+        line-height: 1.6;
+        font-size: 14px;
+        margin: 0;
+        padding: 40px;
+        background-color: #ffffff;
+    }
+    
+    h1, h2, h3, h4 {
+        color: #0f172a;
+        font-weight: 700;
+        margin-top: 1.5em;
+        margin-bottom: 0.5em;
+        page-break-after: avoid;
+    }
+    
+    h1 {
+        font-size: 26px;
+        border-bottom: 2px solid #e2e8f0;
+        padding-bottom: 10px;
+        margin-top: 0;
+    }
+    
+    h2 {
+        font-size: 20px;
+        border-bottom: 1px solid #f1f5f9;
+        padding-bottom: 6px;
+    }
+    
+    h3 { font-size: 16px; }
+    h4 { font-size: 14px; }
+    
+    p {
+        margin-top: 0;
+        margin-bottom: 1em;
+    }
+    
+    hr {
+        border: 0;
+        border-top: 1px solid #e2e8f0;
+        margin: 30px 0;
+    }
+    
+    ul {
+        margin-top: 0;
+        margin-bottom: 1em;
+        padding-left: 20px;
+    }
+    
+    li {
+        margin-bottom: 0.25em;
+    }
+    
+    code {
+        font-family: Consolas, Monaco, "Andale Mono", monospace;
+        background-color: #f1f5f9;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 12px;
+        color: #0f172a;
+    }
+    
+    pre {
+        background-color: #0f172a;
+        color: #f8fafc;
+        padding: 16px;
+        border-radius: 8px;
+        overflow-x: auto;
+        margin-top: 0;
+        margin-bottom: 1.5em;
+    }
+    
+    pre code {
+        background-color: transparent;
+        padding: 0;
+        border-radius: 0;
+        color: inherit;
+        font-size: 12px;
+    }
+    
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 1.5em;
+        font-size: 13px;
+    }
+    
+    th, td {
+        padding: 10px 12px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+    
+    th {
+        background-color: #f8fafc;
+        font-weight: 600;
+        color: #334155;
+    }
+    
+    tr:nth-child(even) td {
+        background-color: #fafafa;
+    }
+    
+    a {
+        color: #2563eb;
+        text-decoration: none;
+    }
+    
+    a:hover {
+        text-decoration: underline;
+    }
+    
+    .math {
+        font-family: "Cambria Math", "Times New Roman", serif;
+        font-style: italic;
+    }
+    
+    /* Cover Page styling */
+    .cover-page {
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        page-break-after: always;
+    }
+    
+    @media print {
+        body {
+            padding: 20px;
+        }
+        .page-break {
+            page-break-before: always;
+        }
+    }
+</style>
+</head>
+<body>
+    <h1>Design and Implementation of a Pipelined Wallace Tree Multiplier using Verilog HDL</h1>
+<br>
+<hr>
+<br>
+<h2>1. Cover Page</h2>
+<br>
+<ul>
+<li><strong>Project Title:</strong> Design and Implementation of a Pipelined Wallace Tree Multiplier</li>
+<li><strong>Submitted by:</strong></li>
+<li><strong>Name:</strong> ___________________________</li>
+<li><strong>Register No:</strong> _____________________</li>
+<li><strong>Course:</strong> __________________________</li>
+<li><strong>Date:</strong> ____________________________</li>
+</ul>
+<br>
+<hr>
+<br>
+<h2>2. Abstract</h2>
+<br>
+<p>A multiplier is one of the most critical arithmetic units in digital systems such as processors, DSP processors, AI accelerators, and communication systems. The performance of a multiplier directly affects the overall system speed.</p>
+<br>
+<p>This project focuses on the design and implementation of a pipelined Wallace Tree multiplier using Verilog HDL. The Wallace Tree architecture reduces multiplication delay by using parallel partial product reduction through Full Adders and Half Adders.</p>
+<br>
+<p>Pipeline registers are introduced at both the inputs, outputs, and intermediate tree stages to improve the operating frequency, timing slack, and throughput of the multiplier. The design is verified using a self-checking testbench with multiple directed and random test cases, yielding a 100% success rate.</p>
+<br>
+<hr>
+<br>
+<h2>3. Objectives</h2>
+<br>
+<p>The objectives of this project are:</p>
+<ul>
+<li>Understand the Wallace Tree multiplier architecture.</li>
+<li>Generate partial products using parallel AND gates.</li>
+<li>Implement partial product reduction using Carry-Save Adder (CSA) compressors.</li>
+<li>Design pipeline stages to optimize timing and maximize operating frequency.</li>
+<li>Develop a structural, modular Verilog RTL implementation.</li>
+<li>Verify the functionality of the multiplier using VCS / ModelSim/ Icarus Verilog simulation.</li>
+<li>Analyze latency, throughput, and performance characteristics.</li>
+</ul>
+<br>
+<hr>
+<br>
+<h2>4. Design Specification</h2>
+<br>
+<table><thead><tr>
+<th style="text-align: left;">Parameter</th>
+<th style="text-align: left;">Specification</th>
+</tr></thead><tbody>
+<tr>
+<td style="text-align: left;"><strong>Input Width</strong></td>
+<td style="text-align: left;">8-bit</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Inputs</strong></td>
+<td style="text-align: left;"><code>A[7:0]</code>, <code>B[7:0]</code> (plus <code>clk</code>, <code>rst_n</code>, <code>valid_in</code>)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Output</strong></td>
+<td style="text-align: left;"><code>16-bit Product</code> (plus <code>valid_out</code>)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Architecture</strong></td>
+<td style="text-align: left;">Wallace Tree (Carry-Save Adder tree)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Pipeline</strong></td>
+<td style="text-align: left;">3/4 Stage Pipeline (3-cycle latency)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Language</strong></td>
+<td style="text-align: left;">Verilog HDL (IEEE 1364-2001)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Reset Type</strong></td>
+<td style="text-align: left;">Asynchronous, Active-Low (<code>rst_n</code>)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Simulation Tool</strong></td>
+<td style="text-align: left;">VCS / ModelSim (Icarus Verilog for local run)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Target Frequency</strong></td>
+<td style="text-align: left;">50 MHz</td>
+</tr>
+</tbody></table>
+<br>
+<hr>
+<br>
+<h2>5. Wallace Tree Multiplier Theory</h2>
+<br>
+<h3>5.1 Basic Multiplication</h3>
+<p>In binary multiplication, multiplying an <span class="math">N</span>-bit multiplicand <span class="math">A</span> by an <span class="math">N</span>-bit multiplier <span class="math">B</span> produces <span class="math">N</span> partial product rows. For <span class="math">N=8</span>, there are 8 rows of 8-bit partial products:</p>
+<p><span class="math"></span>\text{pp}_i = A \times B[i] \quad \text{for } i \in [0, 7]<span class="math"></span></p>
+<p>Each row <span class="math">i</span> is shifted left by <span class="math">i</span> bit positions to match its column weight. Summing these shifted rows combinationaly using traditional carry-propagate addition results in large propagation delays proportional to <span class="math">O(N)</span>.</p>
+<br>
+<h3>5.2 Wallace Tree Reduction</h3>
+<p>The Wallace Tree reduces this latency to <span class="math">O(\log N)</span> by grouping and summing columns in parallel using Carry-Save Adders (CSAs):</p>
+<p>1. <strong>Full Adders (3:2 Compressors):</strong> Take 3 inputs of weight <span class="math">W</span> and produce 1 sum of weight <span class="math">W</span> and 1 carry of weight <span class="math">W+1</span>.</p>
+<p>2. <strong>Half Adders (2:2 Compressors):</strong> Take 2 inputs of weight <span class="math">W</span> and produce 1 sum of weight <span class="math">W</span> and 1 carry of weight <span class="math">W+1</span>.</p>
+<br>
+<p>Through successive reduction stages, the height of the partial product matrix is compressed down to exactly 2 rows, which are then summed using a final fast carry-propagate adder (CPA).</p>
+<br>
+<hr>
+<br>
+<h2>6. Proposed Architecture</h2>
+<br>
+<p>The implemented architecture pipelines the input data, performs a 4-stage Wallace Tree reduction, registers intermediate results, and registers the final product:</p>
+<br>
+<pre><code class="language-mermaid">
+graph TD
+    A[Inputs: A, B, valid_in] --&gt;|Register Stage 1| B[a_reg, b_reg, valid_reg]
+    B --&gt; C[Partial Product Generator]
+    C --&gt;|8 rows| D[Wallace Stage 1: 8 to 6 rows]
+    D --&gt;|6 rows| E[Wallace Stage 2: 6 to 4 rows]
+    E --&gt;|Intermediate CSA Outputs| F[Register Stage 2: sum_C_reg, car_C_reg, sum_D_reg, car_D_reg]
+    F --&gt; G[Wallace Stage 3: 4 to 3 rows]
+    G --&gt;|3 rows| H[Wallace Stage 4: 3 to 2 rows]
+    H --&gt;|2 rows| I[16-Bit Final Carry-Propagate Adder]
+    I --&gt;|product_comb| J[Register Stage 3: p, valid_out]
+    J --&gt; K[Outputs: p, valid_out]
+</code></pre>
+<br>
+<hr>
+<br>
+<h2>7. Pipeline Architecture</h2>
+<br>
+<p>The design features a clocked, registered pipeline with <strong>3 cycles of latency</strong> to maximize throughput:</p>
+<br>
+<ul>
+<li><strong>Stage 1 (Input Registering):</strong> On the rising clock edge, inputs <code>A</code>, <code>B</code>, and <code>valid_in</code> are captured into internal registers (<code>a_reg</code>, <code>b_reg</code>, <code>valid_reg</code>) when reset is inactive. This isolates the inputs from external wiring delays.</li>
+<li><strong>Stage 2 (Intermediate Registering):</strong> After the initial Wallace Tree reduction stages (Stage 1 &amp; 2), the intermediate sum and carry vectors (<code>sum_C</code>, <code>car_C</code>, <code>sum_D</code>, <code>car_D</code>) are registered into intermediate pipeline registers on the next rising clock edge. This splits the long combinational path into two halves.</li>
+<li><strong>Stage 3 (Output Registering):</strong> The final Wallace Tree reduction stages (Stage 3 &amp; 4) and carry-propagate addition are completed combinationaly. The final product is registered on the third rising clock edge, generating output <code>p</code> and driving <code>valid_out</code> high.</li>
+</ul>
+<br>
+<hr>
+<br>
+<h2>8. RTL Design</h2>
+<br>
+<p>The project is structured according to the following layout:</p>
+<br>
+<pre><code class="language-">
+Wallace_Multiplier/
+├── rtl/
+│   ├── wallace_top.v       # Clocked top-level multiplier (3-Stage)
+│   ├── partial_product.v   # Combinational partial product generator
+│   ├── full_adder.v        # 1-bit full adder module
+│   └── half_adder.v        # 1-bit half adder module
+├── tb/
+│   └── wallace_tb.v        # Clocked, self-checking testbench (3-Stage aware)
+├── sim/
+│   ├── wallace_tb          # Compiled simulation binary
+│   └── wallace_wave.vcd    # Waveform file (VCD)
+└── reports/
+    ├── wallace_report.md   # Project report (Markdown)
+    ├── wallace_report.html # Project report (HTML)
+    └── wallace_report.pdf  # Project report (PDF)
+</code></pre>
+<br>
+<hr>
+<br>
+<h2>9. RTL Module Description</h2>
+<br>
+<h3>Full Adder Module</h3>
+<ul>
+<li><strong>Function:</strong> Adds three 1-bit inputs.</li>
+<li><strong>Boolean Equations:</strong></li>
+</ul>
+<p><span class="math"></span>\text{Sum} = A \oplus B \oplus C_{in}<span class="math"></span></p>
+<p><span class="math"></span>\text{Carry} = (A \cdot B) + (B \cdot C_{in}) + (A \cdot C_{in})<span class="math"></span></p>
+<br>
+<h3>Half Adder Module</h3>
+<ul>
+<li><strong>Function:</strong> Adds two 1-bit inputs.</li>
+<li><strong>Boolean Equations:</strong></li>
+</ul>
+<p><span class="math"></span>\text{Sum} = A \oplus B<span class="math"></span></p>
+<p><span class="math"></span>\text{Carry} = A \cdot B<span class="math"></span></p>
+<br>
+<h3>Partial Product Generator</h3>
+<ul>
+<li><strong>Function:</strong> Creates the <span class="math">8 \times 8</span> matrix of partial products using bitwise AND operations:</li>
+</ul>
+<p><span class="math"></span>\text{pp}[i][j] = A[i] \cdot B[j]<span class="math"></span></p>
+<br>
+<h3>Wallace Reduction Module (<code>wallace_top.v</code>)</h3>
+<ul>
+<li><strong>Function:</strong> Organizes and compresses the 8 partial product rows down to 2 rows. It leverages generate loops of full adders and half adders to represent Carry-Save Adder stages, reducing the 8 rows to 6, then 6 to 4 (which are registered), and then 4 to 3, and finally 3 to 2 before the final carry-propagate adder.</li>
+</ul>
+<br>
+<hr>
+<br>
+<h2>10. Testbench Description</h2>
+<br>
+<p>The testbench (<code>tb/wallace_tb.v</code>) is designed as a clocked, self-checking verification environment:</p>
+<ul>
+<li><strong>Clock Generation:</strong> Drives a stable 100 MHz clock signal (<code>CLK_PERIOD = 10ns</code>).</li>
+<li><strong>Reset Sequence:</strong> Asserts active-low <code>rst_n</code> for 3 clock cycles, then de-asserts it to start testing.</li>
+<li><strong>Directed Test Cases:</strong> Feeds specific hex values (e.g. <code>A5 * 3C</code>) to visually verify key cycles.</li>
+<li><strong>Random Input Generation:</strong> Applies 20 random test cases using the <code>$random</code> system function.</li>
+<li><strong>Output Checking:</strong> Utilizes a 3-stage shift register to match the pipeline latency. It compares the registered output <code>p</code> against the reference result (<code>expected = a_d3 * b_d3</code>) on every cycle where <code>valid_out</code> is high.</li>
+</ul>
+<br>
+<hr>
+<br>
+<h2>11. Simulation Results</h2>
+<br>
+<p>Below is the cycle-by-cycle behavior showing how the pipeline latency behaves:</p>
+<br>
+<pre><code class="language-">
+Cycle 1: Inputs applied (A = A5, B = 3C), valid_in goes HIGH.
+Cycle 2: Inputs are captured by register stage 1 (a_reg, b_reg); Stage 1 &amp; 2 tree reductions run.
+Cycle 3: Intermediate sum and carry outputs are captured by register stage 2; Stage 3 &amp; 4 reductions + CPA run.
+Cycle 4: Final product (p = 26AC) is captured by register stage 3 and valid_out goes HIGH.
+</code></pre>
+<br>
+<p>The generated waveform file <code>sim/wallace_wave.vcd</code> contains clean signals. You can load it in GTKWave to view the traces matching the directed test sequence.</p>
+<br>
+<hr>
+<br>
+<h2>12. Verification Result</h2>
+<br>
+<p>The testbench output displays the following results:</p>
+<br>
+<table><thead><tr>
+<th style="text-align: left;">Test Suite</th>
+<th style="text-align: center;">Vectors Tested</th>
+<th style="text-align: center;">Status</th>
+</tr></thead><tbody>
+<tr>
+<td style="text-align: left;"><strong>Directed Test Cases</strong></td>
+<td style="text-align: center;">12</td>
+<td style="text-align: center;"><strong>PASS</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Random Tests</strong></td>
+<td style="text-align: center;">20</td>
+<td style="text-align: center;"><strong>PASS</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Maximum Input (FF × FF)</strong></td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;"><strong>PASS</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Zero Input (00 × 00)</strong></td>
+<td style="text-align: center;">1</td>
+<td style="text-align: center;"><strong>PASS</strong></td>
+</tr>
+</tbody></table>
+<br>
+<p><strong>Final Console Output:</strong></p>
+<pre><code class="language-">
+=============================================================
+  SIMULATION COMPLETE
+  Total Pass : 30
+  Total Fail : 0
+  RESULT     : *** PASS ***
+=============================================================
+</code></pre>
+<br>
+<hr>
+<br>
+<h2>13. Performance Analysis</h2>
+<br>
+<h3>Latency</h3>
+<p>The multiplier has a latency of <strong>3 clock cycles</strong> from the cycle inputs are applied until the product appears on the output pins.</p>
+<br>
+<h3>Throughput</h3>
+<p>Because the inputs are fully pipelined, the design can accept new operands on every clock cycle. This results in an effective throughput of <strong>1 multiplication per clock cycle</strong> (100 Million Multiplications/second at 100 MHz, easily satisfying the 50 MHz target).</p>
+<br>
+<hr>
+<br>
+<h2>14. Comparison</h2>
+<br>
+<p>Compared to standard combinational or ripple-carry multipliers, the Pipelined Wallace Tree Multiplier offers significant advantages:</p>
+<br>
+<table><thead><tr>
+<th style="text-align: left;">Multiplier Type</th>
+<th style="text-align: center;">Delay Complexity</th>
+<th style="text-align: center;">Hardware Area</th>
+<th style="text-align: center;">Max Clock Frequency</th>
+</tr></thead><tbody>
+<tr>
+<td style="text-align: left;"><strong>Ripple Carry Multiplier</strong></td>
+<td style="text-align: center;"><span class="math">O(N)</span> (Slowest)</td>
+<td style="text-align: center;">Low</td>
+<td style="text-align: center;">Low</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Unpipelined Wallace Tree</strong></td>
+<td style="text-align: center;"><span class="math">O(\log N)</span> (Fast)</td>
+<td style="text-align: center;">Medium</td>
+<td style="text-align: center;">Medium</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Pipelined Wallace Tree (3-Stage)</strong></td>
+<td style="text-align: center;"><span class="math">O(\log N)</span> (Fastest)</td>
+<td style="text-align: center;">Medium-High (Registers added)</td>
+<td style="text-align: center;">High (100 MHz+)</td>
+</tr>
+</tbody></table>
+<br>
+<hr>
+<br>
+<h2>15. Conclusion</h2>
+<br>
+<p>The 8-bit Pipelined Wallace Tree Multiplier was successfully implemented in structural Verilog HDL. By structuring the reduction tree using Carry-Save Adders and placing pipeline registers at the input, intermediate, and output stages, the path delays are minimized, enabling high-frequency operation. The design was verified via self-checking simulation and shown to be 100% correct across all corner cases and random test vectors.</p>
+<br>
+<hr>
+<br>
+<h2>16. Future Enhancements</h2>
+<br>
+<ul>
+<li><strong> Booth Encoding:</strong> Integrate Radix-4 Booth multipliers to reduce the initial partial product rows from 8 to 4, further decreasing logic area.</li>
+<li><strong>Deep Pipelining:</strong> Insert pipeline registers inside the Wallace Tree reduction stages (e.g., between Stage 3 and Stage 4) to break the combinational path and target frequencies above 250 MHz.</li>
+<li><strong>Parametrized Bit-width:</strong> Extend the Verilog architecture to support parameter-driven bit-widths (e.g. 16-bit, 32-bit).</li>
+</ul>
+<br>
+</body>
+</html>

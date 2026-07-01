@@ -1,12 +1,13 @@
 // =============================================================================
 // Module      : wallace_top
-// Description : 8 x 8 Unsigned Wallace Tree Multiplier (Registered I/O)
+// Description : 8 x 8 Unsigned Wallace Tree Multiplier (3-Stage Pipelined)
 //               Input  : clk, rst_n, valid_in, a[7:0], b[7:0]
 //               Output : p[15:0], valid_out
 //
-// Pipeline:
-//   Cycle 0 : Inputs a, b registered on rising edge (when valid_in=1)
-//   Cycle 1 : Product appears on p[15:0], valid_out pulses high
+// Pipeline Architecture (3 Stages):
+//   - Stage 1: Input Registers (a_reg, b_reg, valid_reg)
+//   - Stage 2: Intermediate Pipeline Registers (sum_C_reg, car_C_reg, sum_D_reg, car_D_reg)
+//   - Stage 3: Output Registers (p, valid_out)
 //
 // Sub-modules compiled separately on the iverilog command line.
 // =============================================================================
@@ -22,7 +23,7 @@ module wallace_top (
 );
 
     // =========================================================================
-    // Stage 0 : Register inputs
+    // Stage 1 : Register inputs
     // =========================================================================
     reg [7:0] a_reg, b_reg;
     reg       valid_reg;
@@ -63,12 +64,9 @@ module wallace_top (
     wire [14:0] row7 = {      pp7, 7'b0};
 
     // =========================================================================
-    // Wallace Tree CSA Reduction  (combinational)
+    // Wallace Tree CSA Reduction  (Part 1)
     //   Stage 1: 8 rows -> 6 rows
     //   Stage 2: 6 rows -> 4 rows
-    //   Stage 3: 4 rows -> 3 rows
-    //   Stage 4: 3 rows -> 2 rows
-    //   Final  : 2 rows -> product (CPA)
     // =========================================================================
 
     // --- Stage 1 ---
@@ -114,13 +112,45 @@ module wallace_top (
     endgenerate
     wire [16:0] car_D = {car_D_raw, 1'b0};
 
+    // =========================================================================
+    // Stage 2 : Intermediate Pipeline Registers
+    // =========================================================================
+    reg [15:0] sum_C_reg;
+    reg [16:0] car_C_reg;
+    reg [15:0] sum_D_reg;
+    reg [16:0] car_D_reg;
+    reg        valid_reg2;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            sum_C_reg  <= 16'h0000;
+            car_C_reg  <= 17'h00000;
+            sum_D_reg  <= 16'h0000;
+            car_D_reg  <= 17'h00000;
+            valid_reg2 <= 1'b0;
+        end else begin
+            sum_C_reg  <= sum_C;
+            car_C_reg  <= car_C;
+            sum_D_reg  <= sum_D;
+            car_D_reg  <= car_D;
+            valid_reg2 <= valid_reg;
+        end
+    end
+
+    // =========================================================================
+    // Wallace Tree CSA Reduction  (Part 2)
+    //   Stage 3: 4 rows -> 3 rows
+    //   Stage 4: 3 rows -> 2 rows
+    //   Final  : 2 rows -> product (CPA)
+    // =========================================================================
+
     // --- Stage 3 ---
-    wire [16:0] sum_C17 = {1'b0, sum_C};
-    wire [16:0] sum_D17 = {1'b0, sum_D};
+    wire [16:0] sum_C17 = {1'b0, sum_C_reg};
+    wire [16:0] sum_D17 = {1'b0, sum_D_reg};
     wire [16:0] sum_E, car_E_raw;
     generate
         for (k = 0; k < 17; k = k + 1) begin : CSA_E
-            full_adder FE (.a(sum_C17[k]), .b(car_C[k]), .cin(sum_D17[k]),
+            full_adder FE (.a(sum_C17[k]), .b(car_C_reg[k]), .cin(sum_D17[k]),
                            .sum(sum_E[k]), .cout(car_E_raw[k]));
         end
     endgenerate
@@ -131,7 +161,7 @@ module wallace_top (
     wire [17:0] sum_F, car_F_raw;
     generate
         for (k = 0; k < 18; k = k + 1) begin : CSA_F
-            full_adder FF (.a(sum_E18[k]), .b(car_E[k]), .cin(car_D[k]),
+            full_adder FF (.a(sum_E18[k]), .b(car_E[k]), .cin(car_D_reg[k]),
                            .sum(sum_F[k]), .cout(car_F_raw[k]));
         end
     endgenerate
@@ -141,7 +171,7 @@ module wallace_top (
     wire [15:0] product_comb = sum_F[15:0] + car_F[15:0];
 
     // =========================================================================
-    // Stage 1 : Register output
+    // Stage 3 : Register output
     // =========================================================================
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -149,7 +179,7 @@ module wallace_top (
             valid_out <= 1'b0;
         end else begin
             p         <= product_comb;
-            valid_out <= valid_reg;
+            valid_out <= valid_reg2;
         end
     end
 

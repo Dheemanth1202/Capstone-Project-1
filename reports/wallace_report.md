@@ -19,7 +19,7 @@ A multiplier is one of the most critical arithmetic units in digital systems suc
 
 This project focuses on the design and implementation of a pipelined Wallace Tree multiplier using Verilog HDL. The Wallace Tree architecture reduces multiplication delay by using parallel partial product reduction through Full Adders and Half Adders. 
 
-Pipeline registers are introduced at both the inputs and outputs to improve the operating frequency, timing slack, and throughput of the multiplier. The design is verified using a self-checking testbench with multiple directed and random test cases, yielding a 100% success rate.
+Pipeline registers are introduced at both the inputs, outputs, and intermediate tree stages to improve the operating frequency, timing slack, and throughput of the multiplier. The design is verified using a self-checking testbench with multiple directed and random test cases, yielding a 100% success rate.
 
 ---
 
@@ -31,7 +31,7 @@ The objectives of this project are:
 * Implement partial product reduction using Carry-Save Adder (CSA) compressors.
 * Design pipeline stages to optimize timing and maximize operating frequency.
 * Develop a structural, modular Verilog RTL implementation.
-* Verify the functionality of the multiplier using Icarus Verilog simulation.
+* Verify the functionality of the multiplier using VCS / ModelSim/ Icarus Verilog simulation.
 * Analyze latency, throughput, and performance characteristics.
 
 ---
@@ -41,14 +41,14 @@ The objectives of this project are:
 | Parameter | Specification |
 | :--- | :--- |
 | **Input Width** | 8-bit |
-| **Inputs** | `a[7:0]`, `b[7:0]`, `clk`, `rst_n`, `valid_in` |
-| **Output** | `p[15:0]`, `valid_out` (16-bit Product) |
+| **Inputs** | `A[7:0]`, `B[7:0]` (plus `clk`, `rst_n`, `valid_in`) |
+| **Output** | `16-bit Product` (plus `valid_out`) |
 | **Architecture** | Wallace Tree (Carry-Save Adder tree) |
-| **Pipeline** | 2-Stage Registered I/O Pipeline (2-cycle latency) |
+| **Pipeline** | 3/4 Stage Pipeline (3-cycle latency) |
 | **Language** | Verilog HDL (IEEE 1364-2001) |
 | **Reset Type** | Asynchronous, Active-Low (`rst_n`) |
-| **Simulation Tool** | Icarus Verilog (vvp) / GTKWave |
-| **Target Frequency** | 100 MHz |
+| **Simulation Tool** | VCS / ModelSim (Icarus Verilog for local run) |
+| **Target Frequency** | 50 MHz |
 
 ---
 
@@ -70,30 +70,31 @@ Through successive reduction stages, the height of the partial product matrix is
 
 ## 6. Proposed Architecture
 
-The implemented architecture pipelines the input data, performs a 4-stage Wallace Tree reduction, and registers the final product:
+The implemented architecture pipelines the input data, performs a 4-stage Wallace Tree reduction, registers intermediate results, and registers the final product:
 
 ```mermaid
 graph TD
-    A[Inputs: a, b, valid_in] -->|Register Stage 0| B[a_reg, b_reg, valid_reg]
+    A[Inputs: A, B, valid_in] -->|Register Stage 1| B[a_reg, b_reg, valid_reg]
     B --> C[Partial Product Generator]
     C -->|8 rows| D[Wallace Stage 1: 8 to 6 rows]
     D -->|6 rows| E[Wallace Stage 2: 6 to 4 rows]
-    E -->|4 rows| F[Wallace Stage 3: 4 to 3 rows]
-    F -->|3 rows| G[Wallace Stage 4: 3 to 2 rows]
-    G -->|2 rows| H[16-Bit Final Carry-Propagate Adder]
-    H -->|product_comb| I[Register Stage 1]
-    I --> J[Outputs: p, valid_out]
+    E -->|Intermediate CSA Outputs| F[Register Stage 2: sum_C_reg, car_C_reg, sum_D_reg, car_D_reg]
+    F --> G[Wallace Stage 3: 4 to 3 rows]
+    G -->|3 rows| H[Wallace Stage 4: 3 to 2 rows]
+    H -->|2 rows| I[16-Bit Final Carry-Propagate Adder]
+    I -->|product_comb| J[Register Stage 3: p, valid_out]
+    J --> K[Outputs: p, valid_out]
 ```
 
 ---
 
 ## 7. Pipeline Architecture
 
-The design features a clocked, registered pipeline with **2 cycles of latency** to maximize throughput:
+The design features a clocked, registered pipeline with **3 cycles of latency** to maximize throughput:
 
-* **Stage 1 (Input Registering):** On the rising clock edge, inputs `a`, `b`, and `valid_in` are captured into internal registers (`a_reg`, `b_reg`, `valid_reg`) when reset is inactive. This isolates the inputs from external wiring delays.
-* **Stage 2 (Tree Computation):** The registered inputs feed the combinational partial product generator and Wallace Tree CSA stages. The final sum and carry vectors are added to compute the combinational product.
-* **Stage 3 (Output Registering):** The combinational product is registered on the next rising clock edge, generating output `p` and driving `valid_out` high. This isolates the multiplier outputs from subsequent combinational logic.
+* **Stage 1 (Input Registering):** On the rising clock edge, inputs `A`, `B`, and `valid_in` are captured into internal registers (`a_reg`, `b_reg`, `valid_reg`) when reset is inactive. This isolates the inputs from external wiring delays.
+* **Stage 2 (Intermediate Registering):** After the initial Wallace Tree reduction stages (Stage 1 & 2), the intermediate sum and carry vectors (`sum_C`, `car_C`, `sum_D`, `car_D`) are registered into intermediate pipeline registers on the next rising clock edge. This splits the long combinational path into two halves.
+* **Stage 3 (Output Registering):** The final Wallace Tree reduction stages (Stage 3 & 4) and carry-propagate addition are completed combinationaly. The final product is registered on the third rising clock edge, generating output `p` and driving `valid_out` high.
 
 ---
 
@@ -104,17 +105,19 @@ The project is structured according to the following layout:
 ```
 Wallace_Multiplier/
 ├── rtl/
-│   ├── wallace_top.v       # Clocked top-level multiplier
+│   ├── wallace_top.v       # Clocked top-level multiplier (3-Stage)
 │   ├── partial_product.v   # Combinational partial product generator
 │   ├── full_adder.v        # 1-bit full adder module
 │   └── half_adder.v        # 1-bit half adder module
 ├── tb/
-│   └── wallace_tb.v        # Clocked, self-checking testbench
+│   └── wallace_tb.v        # Clocked, self-checking testbench (3-Stage aware)
 ├── sim/
 │   ├── wallace_tb          # Compiled simulation binary
 │   └── wallace_wave.vcd    # Waveform file (VCD)
 └── reports/
-    └── wallace_report.md   # Project report
+    ├── wallace_report.md   # Project report (Markdown)
+    ├── wallace_report.html # Project report (HTML)
+    └── wallace_report.pdf  # Project report (PDF)
 ```
 
 ---
@@ -138,7 +141,7 @@ Wallace_Multiplier/
   $$\text{pp}[i][j] = A[i] \cdot B[j]$$
 
 ### Wallace Reduction Module (`wallace_top.v`)
-* **Function:** Organizes and compresses the 8 partial product rows down to 2 rows. It leverages generate loops of full adders and half adders to represent Carry-Save Adder stages, reducing the 8 rows to 6, then 6 to 4, then 4 to 3, and finally 3 to 2.
+* **Function:** Organizes and compresses the 8 partial product rows down to 2 rows. It leverages generate loops of full adders and half adders to represent Carry-Save Adder stages, reducing the 8 rows to 6, then 6 to 4 (which are registered), and then 4 to 3, and finally 3 to 2 before the final carry-propagate adder.
 
 ---
 
@@ -149,7 +152,7 @@ The testbench (`tb/wallace_tb.v`) is designed as a clocked, self-checking verifi
 * **Reset Sequence:** Asserts active-low `rst_n` for 3 clock cycles, then de-asserts it to start testing.
 * **Directed Test Cases:** Feeds specific hex values (e.g. `A5 * 3C`) to visually verify key cycles.
 * **Random Input Generation:** Applies 20 random test cases using the `$random` system function.
-* **Output Checking:** Utilizes a 2-stage shift register to match the pipeline latency. It compares the registered output `p` against the reference result (`expected = a_d2 * b_d2`) on every cycle where `valid_out` is high.
+* **Output Checking:** Utilizes a 3-stage shift register to match the pipeline latency. It compares the registered output `p` against the reference result (`expected = a_d3 * b_d3`) on every cycle where `valid_out` is high.
 
 ---
 
@@ -158,9 +161,10 @@ The testbench (`tb/wallace_tb.v`) is designed as a clocked, self-checking verifi
 Below is the cycle-by-cycle behavior showing how the pipeline latency behaves:
 
 ```
-Cycle 1: Inputs a = A5, b = 3C applied, valid_in goes HIGH.
-Cycle 2: Inputs are captured by internal registers; computation proceeds.
-Cycle 3: Product p = 26AC is registered and valid_out goes HIGH.
+Cycle 1: Inputs applied (A = A5, B = 3C), valid_in goes HIGH.
+Cycle 2: Inputs are captured by register stage 1 (a_reg, b_reg); Stage 1 & 2 tree reductions run.
+Cycle 3: Intermediate sum and carry outputs are captured by register stage 2; Stage 3 & 4 reductions + CPA run.
+Cycle 4: Final product (p = 26AC) is captured by register stage 3 and valid_out goes HIGH.
 ```
 
 The generated waveform file `sim/wallace_wave.vcd` contains clean signals. You can load it in GTKWave to view the traces matching the directed test sequence.
@@ -193,10 +197,10 @@ The testbench output displays the following results:
 ## 13. Performance Analysis
 
 ### Latency
-The multiplier has a latency of **2 clock cycles** from the cycle inputs are applied until the product appears on the output pins.
+The multiplier has a latency of **3 clock cycles** from the cycle inputs are applied until the product appears on the output pins.
 
 ### Throughput
-Because the inputs are fully pipelined, the design can accept new operands on every clock cycle. This results in an effective throughput of **1 multiplication per clock cycle** (100 Million Multiplications/second at 100 MHz).
+Because the inputs are fully pipelined, the design can accept new operands on every clock cycle. This results in an effective throughput of **1 multiplication per clock cycle** (100 Million Multiplications/second at 100 MHz, easily satisfying the 50 MHz target).
 
 ---
 
@@ -208,18 +212,18 @@ Compared to standard combinational or ripple-carry multipliers, the Pipelined Wa
 | :--- | :---: | :---: | :---: |
 | **Ripple Carry Multiplier** | $O(N)$ (Slowest) | Low | Low |
 | **Unpipelined Wallace Tree** | $O(\log N)$ (Fast) | Medium | Medium |
-| **Pipelined Wallace Tree** | $O(\log N)$ (Fastest) | Medium-High (Registers added) | High (100 MHz+) |
+| **Pipelined Wallace Tree (3-Stage)** | $O(\log N)$ (Fastest) | Medium-High (Registers added) | High (100 MHz+) |
 
 ---
 
 ## 15. Conclusion
 
-The 8-bit Pipelined Wallace Tree Multiplier was successfully implemented in structural Verilog HDL. By structuring the reduction tree using Carry-Save Adders and placing pipeline registers at the input and output stages, the path delays are minimized, enabling high-frequency operation. The design was verified via self-checking simulation and shown to be 100% correct across all corner cases and random test vectors.
+The 8-bit Pipelined Wallace Tree Multiplier was successfully implemented in structural Verilog HDL. By structuring the reduction tree using Carry-Save Adders and placing pipeline registers at the input, intermediate, and output stages, the path delays are minimized, enabling high-frequency operation. The design was verified via self-checking simulation and shown to be 100% correct across all corner cases and random test vectors.
 
 ---
 
 ## 16. Future Enhancements
 
 * ** Booth Encoding:** Integrate Radix-4 Booth multipliers to reduce the initial partial product rows from 8 to 4, further decreasing logic area.
-* **Deep Pipelining:** Insert pipeline registers inside the Wallace Tree reduction stages (e.g., between Stage 2 and Stage 3) to break the combinational path and target frequencies above 250 MHz.
+* **Deep Pipelining:** Insert pipeline registers inside the Wallace Tree reduction stages (e.g., between Stage 3 and Stage 4) to break the combinational path and target frequencies above 250 MHz.
 * **Parametrized Bit-width:** Extend the Verilog architecture to support parameter-driven bit-widths (e.g. 16-bit, 32-bit).

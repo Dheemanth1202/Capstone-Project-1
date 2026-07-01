@@ -1,6 +1,6 @@
 // =============================================================================
 // Module      : wallace_tb
-// Description : Clocked testbench for the 8x8 Wallace Tree Multiplier.
+// Description : Clocked testbench for the 8x8 Wallace Tree Multiplier (3-Stage).
 //               Generates waveform with: clk, rst_n, a, b, p, valid_out
 //
 // Waveform Output: sim/wallace_wave.vcd  (open with GTKWave)
@@ -68,22 +68,22 @@ module wallace_tb;
     end
 
     // =========================================================================
-    // 2-deep shift register to track applied inputs through the pipeline
-    // DUT has 2-cycle latency: inputs register -> compute -> output register
+    // 3-deep shift register to track applied inputs through the pipeline
+    // DUT has 3-cycle latency: input reg -> intermediate reg -> output reg
     // =========================================================================
-    reg [7:0]  a_d1, a_d2;
-    reg [7:0]  b_d1, b_d2;
-    reg        vld_d1, vld_d2;
+    reg [7:0]  a_d1, a_d2, a_d3;
+    reg [7:0]  b_d1, b_d2, b_d3;
+    reg        vld_d1, vld_d2, vld_d3;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            a_d1   <= 0; a_d2   <= 0;
-            b_d1   <= 0; b_d2   <= 0;
-            vld_d1 <= 0; vld_d2 <= 0;
+            a_d1   <= 0; a_d2   <= 0; a_d3   <= 0;
+            b_d1   <= 0; b_d2   <= 0; b_d3   <= 0;
+            vld_d1 <= 0; vld_d2 <= 0; vld_d3 <= 0;
         end else begin
-            a_d1   <= a;       a_d2   <= a_d1;
-            b_d1   <= b;       b_d2   <= b_d1;
-            vld_d1 <= valid_in; vld_d2 <= vld_d1;
+            a_d1   <= a;       a_d2   <= a_d1;   a_d3   <= a_d2;
+            b_d1   <= b;       b_d2   <= b_d1;   b_d3   <= b_d2;
+            vld_d1 <= valid_in; vld_d2 <= vld_d1; vld_d3 <= vld_d2;
         end
     end
 
@@ -105,15 +105,15 @@ module wallace_tb;
     // =========================================================================
     always @(posedge clk) begin
         if (valid_out) begin
-            expected = a_d2 * b_d2;   // 2-cycle delayed inputs
+            expected = a_d3 * b_d3;   // 3-cycle delayed inputs
             if (p === expected) begin
                 pass_count = pass_count + 1;
                 $display("[%0t ns] PASS: 0x%02X * 0x%02X = 0x%04X",
-                         $time, a_d2, b_d2, p);
+                         $time, a_d3, b_d3, p);
             end else begin
                 fail_count = fail_count + 1;
                 $display("[%0t ns] FAIL: 0x%02X * 0x%02X | expected=0x%04X got=0x%04X",
-                         $time, a_d2, b_d2, expected, p);
+                         $time, a_d3, b_d3, expected, p);
             end
         end
     end
@@ -179,8 +179,8 @@ module wallace_tb;
 
         valid_in = 1'b0;
 
-        // Let pipeline drain (2 extra cycles)
-        @(posedge clk); @(posedge clk);
+        // Let pipeline drain (3 extra cycles)
+        @(posedge clk); @(posedge clk); @(posedge clk);
 
         $display("");
 
@@ -196,7 +196,7 @@ module wallace_tb;
         valid_in = 1'b0;
 
         // Let pipeline drain
-        @(posedge clk); @(posedge clk); @(posedge clk);
+        @(posedge clk); @(posedge clk); @(posedge clk); @(posedge clk);
 
         // =====================================================================
         // 4.  Summary
