@@ -1,17 +1,3 @@
-// =============================================================================
-// Module      : wallace_top
-// Description : 8 x 8 Unsigned Wallace Tree Multiplier (3-Stage Pipelined)
-//               Input  : clk, rst_n, valid_in, a[7:0], b[7:0]
-//               Output : p[15:0], valid_out
-//
-// Pipeline Architecture (3 Stages):
-//   - Stage 1: Input Registers (a_reg, b_reg, valid_reg)
-//   - Stage 2: Intermediate Pipeline Registers (sum_C_reg, car_C_reg, sum_D_reg, car_D_reg)
-//   - Stage 3: Output Registers (p, valid_out)
-//
-// Sub-modules compiled separately on the iverilog command line.
-// =============================================================================
-
 module wallace_top (
     input  wire        clk,
     input  wire        rst_n,
@@ -22,9 +8,7 @@ module wallace_top (
     output reg         valid_out
 );
 
-    // =========================================================================
-    // Stage 1 : Register inputs
-    // =========================================================================
+
     reg [7:0] a_reg, b_reg;
     reg       valid_reg;
 
@@ -40,9 +24,7 @@ module wallace_top (
         end
     end
 
-    // =========================================================================
-    // Partial Products  (combinational)
-    // =========================================================================
+
     wire [7:0] pp0, pp1, pp2, pp3, pp4, pp5, pp6, pp7;
 
     partial_product u_pp (
@@ -51,9 +33,7 @@ module wallace_top (
         .pp4(pp4), .pp5(pp5), .pp6(pp6), .pp7(pp7)
     );
 
-    // =========================================================================
-    // Align partial products as 15-bit shifted rows
-    // =========================================================================
+
     wire [14:0] row0 = {7'b0, pp0};
     wire [14:0] row1 = {6'b0, pp1, 1'b0};
     wire [14:0] row2 = {5'b0, pp2, 2'b0};
@@ -63,13 +43,7 @@ module wallace_top (
     wire [14:0] row6 = {1'b0, pp6, 6'b0};
     wire [14:0] row7 = {      pp7, 7'b0};
 
-    // =========================================================================
-    // Wallace Tree CSA Reduction  (Part 1)
-    //   Stage 1: 8 rows -> 6 rows
-    //   Stage 2: 6 rows -> 4 rows
-    // =========================================================================
 
-    // --- Stage 1 ---
     wire [14:0] sum_A, car_A_raw;
     genvar k;
     generate
@@ -89,7 +63,7 @@ module wallace_top (
     endgenerate
     wire [15:0] car_B = {car_B_raw, 1'b0};
 
-    // --- Stage 2 ---
+
     wire [15:0] sum_A16 = {1'b0, sum_A};
     wire [15:0] sum_B16 = {1'b0, sum_B};
     wire [15:0] sum_C, car_C_raw;
@@ -112,9 +86,7 @@ module wallace_top (
     endgenerate
     wire [16:0] car_D = {car_D_raw, 1'b0};
 
-    // =========================================================================
-    // Stage 2 : Intermediate Pipeline Registers
-    // =========================================================================
+
     reg [15:0] sum_C_reg;
     reg [16:0] car_C_reg;
     reg [15:0] sum_D_reg;
@@ -137,14 +109,9 @@ module wallace_top (
         end
     end
 
-    // =========================================================================
-    // Wallace Tree CSA Reduction  (Part 2)
-    //   Stage 3: 4 rows -> 3 rows
-    //   Stage 4: 3 rows -> 2 rows
-    //   Final  : 2 rows -> product (CPA)
-    // =========================================================================
 
-    // --- Stage 3 ---
+
+
     wire [16:0] sum_C17 = {1'b0, sum_C_reg};
     wire [16:0] sum_D17 = {1'b0, sum_D_reg};
     wire [16:0] sum_E, car_E_raw;
@@ -156,7 +123,7 @@ module wallace_top (
     endgenerate
     wire [17:0] car_E = {car_E_raw, 1'b0};
 
-    // --- Stage 4 ---
+
     wire [17:0] sum_E18 = {1'b0, sum_E};
     wire [17:0] sum_F, car_F_raw;
     generate
@@ -167,12 +134,10 @@ module wallace_top (
     endgenerate
     wire [18:0] car_F = {car_F_raw, 1'b0};
 
-    // --- Combinational product ---
+
     wire [15:0] product_comb = sum_F[15:0] + car_F[15:0];
 
-    // =========================================================================
-    // Stage 3 : Register output
-    // =========================================================================
+
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             p         <= 16'h0000;
